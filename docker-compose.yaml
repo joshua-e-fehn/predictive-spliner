@@ -35,6 +35,7 @@ services:
       context: .
       dockerfile: .docker_utils/Dockerfile.base_x86
     image: base_x86
+    platform: linux/amd64
   
   sim_x86:
     build:
@@ -45,6 +46,7 @@ services:
         - UID=${UID} # user id must be saved to an environment variable, can be done with `export UID=$(id -u)`
         - GID=${GID} # group id must be saved to an environment variable, can be done with `export GID=$(id -g)`
     image: race_stack_sim_x86
+    platform: linux/amd64
     # container_name: race_stack_sim_x86
     depends_on:
       - base_x86
