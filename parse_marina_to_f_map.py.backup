@@ -30,6 +30,29 @@ class MarinaMapParser:
         """
         self.csv_file = csv_file
         self.output_map_name = output_map_name
+            for line_num, line in enumerate(f):
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if line.startswith('nan') or not any(c.isdigit() for c in line):
+                    continue
+                data_lines.append(line)
+        
+        print(f"Found {len(data_lines)} data lines for trackbounds")
+        
+        # Sample every nth waypoint to avoid too many markers
+        sample_rate = max(1, len(data_lines) // 200)  # Limit to ~200 markers per boundary
+        print(f"Using sample rate: {sample_rate}")r:
+    def __init__(self, csv_file: str, output_map_name: str = "marina"):
+        """
+        Initialize the Marina map parser.
+        
+        Args:
+            csv_file: Path to the Marina CSV file
+            output_map_name: Name for the output map directory
+        """
+        self.csv_file = csv_file
+        self.output_map_name = output_map_name
         
         # Define column mapping based on CSV header analysis
         # Marina CSV columns: x_rl_m, y_rl_m, z_rl_m, v_rl_mps, n_rl_m, chi_rl_rad, ax_rl_mps2, ay_rl_mps2, jx_rl_mps3, jy_rl_mps3, tire_util_rl, s_ref_rl_m, x_ref_rl_m, y_ref_rl_m, z_ref_rl_m, theta_ref_rl_rad, mu_ref_rl_rad, phi_ref_rl_rad, dtheta_ref_rl_radpm, dmu_ref_rl_radpm, dphi_ref_rl_radpm, w_tr_right_ref_rl_m, w_tr_left_ref_rl_m, omega_x_ref_rl_radpm, omega_y_ref_rl_radpm, omega_z_ref_rl_radpm, s_ref_cl_m, x_ref_cl_m, y_ref_cl_m, z_ref_cl_m, theta_ref_cl_rad, mu_ref_cl_rad, phi_ref_cl_rad, dtheta_ref_cl_radpm, dmu_ref_cl_radpm, dphi_ref_cl_radpm, w_tr_right_ref_cl_m, w_tr_left_ref_cl_m, omega_x_ref_cl_radpm, omega_y_ref_cl_radpm, omega_z_ref_cl_radpm, tb_left_x_ref_rl_m, tb_left_y_ref_rl_m, tb_left_z_ref_rl_m, tb_right_x_ref_rl_m, tb_right_y_ref_rl_m, tb_right_z_ref_rl_m
@@ -455,8 +478,6 @@ class MarinaMapParser:
         """Create visualization markers for track boundaries using actual CSV trackbounds data."""
         markers = []
         
-        print("Creating trackbounds markers from CSV data...")
-        
         # Load the CSV again to get trackbounds data
         data_lines = []
         with open(self.csv_file, 'r') as f:
@@ -468,8 +489,9 @@ class MarinaMapParser:
                     continue
                 data_lines.append(line)
         
-        # Sample every 25th waypoint to avoid too many markers (about 200 markers total)
-        sample_rate = 5
+        # Sample every nth waypoint to avoid too many markers
+        sample_rate = max(1, len(data_lines))
+        
         marker_id = 0
         successful_markers = 0
         
@@ -477,34 +499,58 @@ class MarinaMapParser:
             try:
                 values = [v.strip() for v in line.split(',')]
                 
-                # Skip if not enough columns
                 if len(values) < 47:
+                    print(f"Warning: Line {i} has only {len(values)} columns, expected 47")
                     continue
                 
-                # Get trackbounds coordinates from CSV (columns 41-46)
-                tb_left_x = float(values[41])   # tb_left_x_ref_rl_m
-                tb_left_y = float(values[42])   # tb_left_y_ref_rl_m  
-                tb_right_x = float(values[44])  # tb_right_x_ref_rl_m
-                tb_right_y = float(values[45])  # tb_right_y_ref_rl_m
+                # Get trackbounds coordinates from CSV
+                tb_left_x = float(values[self.column_mapping['tb_left_x']])
+                tb_left_y = float(values[self.column_mapping['tb_left_y']])
+                tb_right_x = float(values[self.column_mapping['tb_right_x']])
+                tb_right_y = float(values[self.column_mapping['tb_right_y']])
                 
                 # Create left boundary marker
                 left_marker = {
                     'header': {
                         'seq': 0,
-                        'stamp': {'secs': 0, 'nsecs': 0},
+                        'stamp': {
+                            'secs': 0,
+                            'nsecs': 0
+                        },
                         'frame_id': 'map'
                     },
                     'ns': 'trackbounds_left',
                     'id': marker_id,
-                    'type': 2,  # CUBE
+                    'type': 2,  
                     'action': 0,
                     'pose': {
-                        'position': {'x': tb_left_x, 'y': tb_left_y, 'z': 0},
-                        'orientation': {'x': 0, 'y': 0, 'z': 0, 'w': 1}
+                        'position': {
+                            'x': tb_left_x,
+                            'y': tb_left_y,
+                            'z': 0
+                        },
+                        'orientation': {
+                            'x': 0,
+                            'y': 0,
+                            'z': 0,
+                            'w': 1
+                        }
                     },
-                    'scale': {'x': 0.1, 'y': 0.1, 'z': 0.1},
-                    'color': {'r': 1, 'g': 0.5, 'b': 0, 'a': 0.7},
-                    'lifetime': {'secs': 0, 'nsecs': 0},
+                    'scale': {
+                        'x': 0.1,
+                        'y': 0.1,
+                        'z': 0.1
+                    },
+                    'color': {
+                        'r': 1,
+                        'g': 0.5,
+                        'b': 0,
+                        'a': 0.7
+                    },
+                    'lifetime': {
+                        'secs': 0,
+                        'nsecs': 0
+                    },
                     'frame_locked': False,
                     'points': [],
                     'colors': [],
@@ -519,20 +565,44 @@ class MarinaMapParser:
                 right_marker = {
                     'header': {
                         'seq': 0,
-                        'stamp': {'secs': 0, 'nsecs': 0},
+                        'stamp': {
+                            'secs': 0,
+                            'nsecs': 0
+                        },
                         'frame_id': 'map'
                     },
                     'ns': 'trackbounds_right',
                     'id': marker_id,
-                    'type': 1,  # CUBE
+                    'type': 1,  # CUBE marker type for boundaries
                     'action': 0,
                     'pose': {
-                        'position': {'x': tb_right_x, 'y': tb_right_y, 'z': 0},
-                        'orientation': {'x': 0, 'y': 0, 'z': 0, 'w': 1}
+                        'position': {
+                            'x': tb_right_x,
+                            'y': tb_right_y,
+                            'z': 0
+                        },
+                        'orientation': {
+                            'x': 0,
+                            'y': 0,
+                            'z': 0,
+                            'w': 1
+                        }
                     },
-                    'scale': {'x': 0.1, 'y': 0.1, 'z': 0.1},
-                    'color': {'r': 1, 'g': 0.5, 'b': 0, 'a': 0.7},
-                    'lifetime': {'secs': 0, 'nsecs': 0},
+                    'scale': {
+                        'x': 0.1,
+                        'y': 0.1,
+                        'z': 0.1
+                    },
+                    'color': {
+                        'r': 1,
+                        'g': 0.5,
+                        'b': 0,
+                        'a': 0.7
+                    },
+                    'lifetime': {
+                        'secs': 0,
+                        'nsecs': 0
+                    },
                     'frame_locked': False,
                     'points': [],
                     'colors': [],
@@ -545,6 +615,7 @@ class MarinaMapParser:
                 successful_markers += 2
                 
             except (ValueError, IndexError) as e:
+                print(f"Error processing line {i}: {e}")
                 continue
         
         print(f"Successfully created {successful_markers} trackbounds markers ({successful_markers//2} left, {successful_markers//2} right)")
